@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Climatizzatore Mobile</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+body { font-family: Arial, sans-serif; text-align:center; margin:20px; background:#f5f5f5; color:#222; }
+h2 { margin-bottom:20px; }
+button { font-size:24px; padding:20px 40px; margin:10px; border:none; border-radius:12px; cursor:pointer; box-shadow:0 4px #999; }
+button:active { box-shadow:0 2px #666; transform:translateY(2px); }
+#onBtn { background:#4CAF50; color:white; }
+#offBtn { background:#F44336; color:white; }
+select, input[type=range] { font-size:20px; padding:10px; margin:10px; width:80%; max-width:300px; }
+#tempVal { font-size:28px; font-weight:bold; display:block; margin-top:10px; }
+#status { margin-top:20px; font-weight:bold; font-size:18px; }
+.container { display:flex; flex-direction:column; align-items:center; }
+</style>
+</head>
+<body>
+
+<h2>Climatizzatore</h2>
+<div class="container">
+  <div>
+    <button id="onBtn">ON</button>
+    <button id="offBtn">OFF</button>
+  </div>
+
+  <div>
+    Temperatura: <span id="tempVal">24</span>°C<br>
+    <input type="range" id="tempSlider" min="17" max="30" value="24">
+  </div>
+
+  <div>
+    Modalità:
+    <select id="mode">
+      <option value="cool">Cool</option>
+      <option value="heat">Heat</option>
+      <option value="auto">Auto</option>
+      <option value="dry">Dry</option>
+      <option value="fan">Fan</option>
+    </select>
+  </div>
+
+  <div>
+    Ventola:
+    <select id="fan">
+      <option value="auto">Auto</option>
+      <option value="min">Min</option>
+      <option value="med">Med</option>
+      <option value="max">Max</option>
+    </select>
+  </div>
+
+  <div id="status">Stato: ---</div>
+</div>
+
+<script>
+const broker = "wss://672248edb20647248facdbb8e9f8be3e.s1.eu.hivemq.cloud:8884/mqtt"; // sostituisci con il tuo TLS WebSocket URL
+const options = {
+    username: "esp32.ac.ir", // sostituisci
+    password: "Pannocchia.2024",
+    keepalive: 60
+};
+
+const client = mqtt.connect(broker, options);
+
+client.on('connect', () => {
+    console.log('MQTT connesso');
+    client.subscribe('home/ac/samsung/state');
+    document.getElementById('status').innerText = 'Connesso';
+});
+
+client.on('message', (topic, message) => {
+    if(topic === 'home/ac/samsung/state') {
+        try {
+            const state = JSON.parse(message.toString());
+            document.getElementById('tempVal').innerText = state.temp;
+            document.getElementById('tempSlider').value = state.temp;
+            document.getElementById('mode').value = state.mode;
+            document.getElementById('fan').value = state.fan;
+            document.getElementById('status').innerText = 'Stato aggiornato';
+        } catch(e) {
+            console.error("Errore parsing JSON", e);
+        }
+    }
+});
+
+const sendCommand = (cmd) => {
+    client.publish('home/ac/samsung/cmd', JSON.stringify(cmd));
+};
+
+// Pulsanti ON/OFF
+document.getElementById('onBtn').addEventListener('click', () => {
+    const cmd = {
+        temp: parseInt(document.getElementById('tempSlider').value),
+        mode: document.getElementById('mode').value,
+        fan: document.getElementById('fan').value
+    };
+    sendCommand(cmd);
+});
+
+document.getElementById('offBtn').addEventListener('click', () => {
+	client.publish('home/ac/samsung/cmd', "OFF");
+	});
+
+// Slider temperatura
+document.getElementById('tempSlider').addEventListener('input', () => {
+    const val = document.getElementById('tempSlider').value;
+    document.getElementById('tempVal').innerText = val;
+    const cmd = {
+        temp: parseInt(val),
+        mode: document.getElementById('mode').value,
+        fan: document.getElementById('fan').value
+    };
+    sendCommand(cmd);
+});
+
+// Dropdown modalità e ventola
+document.getElementById('mode').addEventListener('change', () => {
+    const cmd = {
+        temp: parseInt(document.getElementById('tempSlider').value),
+        mode: document.getElementById('mode').value,
+        fan: document.getElementById('fan').value
+    };
+    sendCommand(cmd);
+});
+
+document.getElementById('fan').addEventListener('change', () => {
+    const cmd = {
+        temp: parseInt(document.getElementById('tempSlider').value),
+        mode: document.getElementById('mode').value,
+        fan: document.getElementById('fan').value
+    };
+    sendCommand(cmd);
+});
+</script>
+
+</body>
+</html>
